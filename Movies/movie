@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+
+# COMP3311 22T3 Assignment 2
+# Print info about one movie; may need to choose
+
+import sys
+import psycopg2
+import helpers
+
+### Globals
+
+db = None
+usage = f"Usage: {sys.argv[0]} 'PartialMovieName'"
+
+### Command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+
+# process the command-line args ...
+
+### Queries
+movie_names = """
+select movies.title, movies.year
+from playsrole, movies
+join principals i on i.movie = movies.id
+join people on people.id = i.person
+where title ilike '%%' || %s || '%%'
+and playsrole.inMovie = i.id
+order by title, year
+"""
+
+### Manipulating database
+
+try:
+   # your code goes here
+   db = psycopg2.connect("dbname=ass2")
+   movie = sys.argv[1]
+   cur = db.cursor()
+   
+   cur.execute(movie_names, [movie])
+   title = cur.fetchall()
+
+   #Checks for the case where the title isn't present
+   if len(title) == 0:
+      print(f"No movie matching: '{movie}'")
+      exit(1)
+
+except Exception as err:
+   print("DB error: ", err)
+finally:
+   if db:
+      db.close()
+

@@ -1,0 +1,85 @@
+#!/usr/bin/python3
+
+# COMP3311 22T3 Assignment 2
+# Print a list of movies directed by a given person
+
+import sys
+import psycopg2
+import helpers
+
+### Globals
+
+db = None
+usage = f"Usage: {sys.argv[0]} FullName"
+
+### Command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+
+# process the command-line args ...
+
+### Queries
+
+name_query = """
+select distinct id
+from people
+where name = %s;
+"""
+people_query = """
+select distinct People.id
+from Principals i
+inner join People on People.id = i.person
+where job = 'director'
+and People.name = %s;
+"""
+
+movie_query = """
+select m.title, m.year
+from movies m
+inner join principals i on i.movie = m.id
+inner join people on people.id = i.person
+where i.job = 'director' 
+and people.name = %s 
+order by people.id, m.year;
+"""
+
+### Manipulating database
+
+try:
+   # your code goes here
+   db = psycopg2.connect("dbname=ass2")
+   name = sys.argv[1]
+   cur = db.cursor()
+
+   cur.execute(name_query, [name])
+   person_name = cur.fetchall()
+   no_one = len(person_name)
+
+   if (no_one == 0):
+      print("No such person")
+      exit(0)
+
+   cur.execute(people_query, [name])
+   person_name = cur.fetchone()
+
+   if (person_name is None and no_one == 1):
+      print(f"{name} has not directed any movies")
+      exit(0)
+
+   elif (person_name is None):
+      print(f"None of the people called {name} has directed any films")
+      exit(0)
+
+   cur.execute(movie_query, [name])
+   dirname = cur.fetchall()
+
+   for director in dirname:
+      print(f"{director[0]} ({director[1]})")
+
+except Exception as err:
+   print("DB error: ", err)
+finally:
+   if db:
+      db.close()

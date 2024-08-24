@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+
+# COMP3311 22T3 Assignment 2
+# Print a list of countries where a named movie was released
+
+import sys
+import psycopg2
+import helpers
+
+### Globals
+
+db = None
+usage = f"Usage: {sys.argv[0]} 'MovieName' Year"
+
+### Command-line args
+
+if len(sys.argv) < 3:
+   print(usage)
+   exit(1)
+
+# process the command-line args ...
+
+### Queries
+
+movie = """
+select distinct m.title, m.year, c.name
+from Countries c, Movies m
+join ReleasedIn on ReleasedIn.movie = m.id
+where m.title = %s
+and m.year = %s
+and ReleasedIn.country = c.code
+order by c.name;
+"""
+year = """
+select distinct *
+from Movies m
+where title = %s
+and year = %s;
+"""
+
+released = """
+select distinct m.id
+from Movies m
+join ReleasedIn on m.id = ReleasedIn.movie
+where ReleasedIn.country is null
+and title = %s
+and year = %s;
+"""
+### Manipulating database
+
+try:
+   # your code goes here
+   db = psycopg2.connect("dbname=ass2")
+   mov_name = sys.argv[1]
+   mov_year = sys.argv[2]
+   cur = db.cursor()
+
+   if (mov_year.isdigit() and len(mov_year) == 4):
+      pass
+   else:
+      print("Invalid year")
+      exit(0)
+
+   cur.execute(year, [mov_name, mov_year])
+   dirExists = cur.fetchone()
+
+   if (not dirExists):
+      print("No such movie")
+      exit(0)
+
+   cur.execute(released, [mov_name, mov_year])
+   dirExists = cur.fetchall()
+   if (len(dirExists) != 0):
+      print("No such movie")
+      exit(0)
+   
+   cur.execute(movie, [mov_name, mov_year])
+   country1 = cur.fetchall()
+
+   for country in country1:
+      print(f"{country[2]}")
+
+except Exception as err:
+   print("DB error: ", err)
+finally:
+   if db:
+      db.close()
+

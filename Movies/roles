@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+
+# COMP3311 22T3 Assignment 2
+# Print a list of character roles played by an actor/actress
+
+import sys
+import psycopg2
+import helpers
+
+### Globals
+
+db = None
+usage = f"Usage: {sys.argv[0]} FullName"
+
+### Command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+
+# process the command-line args ...
+
+### Queries
+
+name_query = """
+   select id
+   from people
+   where name = %s
+   order by people.id
+   """
+
+
+role_query = """
+   select playsrole.role, m.title, m.year
+   from people p 
+   join principals i on i.person = p.id
+   join movies m on m.id = i.movie
+   join playsrole on playsrole.inmovie = i.id
+   where (i.job = 'actor' and p.id = %s)
+   or (i.job = 'actress' and p.id = %s)
+   or (i.job = 'self' and p.id = %s)
+   order by m.year, m.title, playsrole.role;
+   """
+
+def print_order (role1):
+   if len(mov) == 0:
+      print("No acting roles")
+   else:
+      for role2 in role1:
+         print(f"{role2[0]} in {role2[1]} ({role2[2]})")
+
+### Manipulating database
+
+try:
+
+   # your code goes here 
+
+   db = psycopg2.connect("dbname=ass2")
+   name = sys.argv[1]
+   cur = db.cursor()
+
+   cur.execute(name_query, [name])
+   person_name = cur.fetchall()
+   no_one = len(person_name)
+
+   if (no_one == 0):
+      print("No such person")
+      exit(0)
+
+   if (no_one > 1):
+      for j in range(no_one):
+         loop = f'{name} #{j + 1}'
+         print(loop)
+         cur.execute(role_query, [person_name[j], person_name[j], person_name[j]])
+         mov = cur.fetchall()
+         print_order(mov)
+   else:
+         cur.execute(role_query, [person_name[0], person_name[0], person_name[0]])
+         mov = cur.fetchall()
+         print_order(mov)
+
+
+except Exception as err:
+   print("DB error: ", err)
+finally:
+   if db:
+      db.close()
+
