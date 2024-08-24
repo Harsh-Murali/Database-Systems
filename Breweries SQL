@@ -1,0 +1,177 @@
+-- COMP3311 Assignment 1
+--
+-- Fill in the gaps ("...") below with your code
+-- You can add any auxiliary views/function that you like
+-- The code in this file *MUST* load into an empty database in one pass
+-- It will be tested as follows:
+-- createdb test; psql test -f ass1.dump; psql test -f ass1.sql
+-- Make sure it can load without error under these conditions
+
+
+-- Q1: new breweries in Sydney in 2020
+
+create or replace view Q1(brewery,suburb)
+as
+select breweries.name, locations.town
+from breweries, locations
+     where locations.metro = 'Sydney'
+     and breweries.founded = '2020'
+     and breweries.located_in = locations.id
+;
+
+-- Q2: beers whose name is same as their style
+
+create or replace view Q2(beer,brewery)
+as
+select beers.name, breweries.name
+from beers, brewed_by, styles, breweries
+     where beers.style = styles.id
+     and beers.name = styles.name
+     and beers.id = brewed_by.beer
+     and breweries.id = brewed_by.brewery
+;
+
+-- Q3: original Californian craft brewery
+
+-- This view joins locations with breweries--
+create or replace view places(name, founded, region) as
+select name, founded, region
+from breweries
+     join locations
+     on breweries.located_in = locations.id;
+
+create or replace view Q3(brewery, founded)
+as
+select name, founded
+from places
+     where region = 'California'
+order by founded
+limit 1;
+
+
+-- Q4: all IPA variations, and how many times each occurs
+
+create or replace view Q4(style,count)
+as
+select styles.name, count(*)
+from styles
+     join beers on beers.style = styles.id
+     where styles.name like '%IPA%'
+group by styles.name
+;
+
+-- Q5: all Californian breweries, showing precise location
+
+
+create or replace view Q5(brewery,location)
+as
+select distinct breweries.name,
+coalesce(locations.town, locations.metro, locations.region)
+from locations
+     join breweries on breweries.located_in = locations.id
+     where locations.region = 'California'
+group by breweries.name, locations.town, locations.metro, locations.region
+;
+
+-- Q6: strongest barrel-aged beer
+
+create or replace view Q6(beer,brewery,abv)
+as
+select beers.name, breweries.name, beers.abv
+from breweries
+     inner join brewed_by on brewed_by.brewery = breweries.id
+     inner join beers on beers.id = brewed_by.beer
+     where beers.notes like '%barrel%aged%'
+     or beers.notes like '%aged%barrel%'
+order by beers.abv DESC
+limit 1
+;
+
+-- Q7: most popular hop
+
+create or replace view Q7(hop)
+as
+select ingredients.name
+from ingredients
+     join contains on contains.ingredient = ingredients.id
+     where ingredients.itype = 'hop'
+group by ingredients.name
+order by count(ingredients.name) DESC
+limit 1
+;
+
+-- Q8: breweries that don't make IPA or Lager or Stout (any variation thereof)
+ 
+create or replace view Q8(brewery)
+as
+select breweries.name as brewery
+from breweries
+
+except
+
+select breweries.name as brewery
+from breweries
+     join brewed_by on brewed_by.brewery = breweries.id
+     join beers on beers.id = brewed_by.beer
+     join styles on beers.style = styles.id
+     where styles.name like '%Lager%'
+     or styles.name like '%Stout%'
+     or styles.name like '%IPA%'
+;
+
+-- Q9: most commonly used grain in Hazy IPAs
+create or replace view Q9(grain)
+as
+select ingredients.name
+from ingredients
+     join contains on contains.ingredient = ingredients.id
+     join beers on contains.beer = beers.id
+     join styles on beers.style = styles.id
+     where styles.name like '%Hazy IPA%'
+     and ingredients.itype = 'grain'
+     and contains.beer = beers.id
+group by ingredients.name
+order by count(*) DESC
+limit 1
+;
+
+-- Q10: ingredients not used in any beer
+
+create or replace view Q10(unused)
+as
+select ingredients.name
+from ingredients
+
+except
+
+select ingredients.name
+from ingredients
+     join contains on contains.ingredient = ingredients.id
+     join beers on contains.beer = beers.id
+;
+
+-- Q11: min/max abv for a given country
+ 
+
+drop type if exists ABVrange cascade;
+create type ABVrange as (minABV float, maxABV float);
+
+create or replace function
+	Q11(_country text) returns ABVrange
+as $$
+...
+$$
+language plpgsql;
+
+-- Q12: details of beers
+
+
+drop type if exists BeerData cascade;
+create type BeerData as (beer text, brewer text, info text);
+
+create or replace function
+	Q12(partial_name text) returns setof BeerData
+as $$
+...
+$$
+language plpgsql
